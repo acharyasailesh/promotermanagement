@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
-import { 
-  Users, Lock, Plus, Edit2, Trash2, Shield, Save, Check, X 
+import {
+  Users, Lock, Plus, Edit2, Trash2, Shield, Save, Check, X
 } from 'lucide-react';
 
 interface Role {
@@ -57,6 +57,10 @@ export default function UserManagementPage() {
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [roleForm, setRoleForm] = useState<{ name: string; permissions: Record<string, boolean> }>({ name: '', permissions: {} });
 
+  // Delete states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const [profilesRes, rolesRes] = await Promise.all([
@@ -76,7 +80,7 @@ export default function UserManagementPage() {
   const handleUpdateUserRole = async (userId: string, roleId: string) => {
     setSaving(true);
     const selectedRole = roles.find(r => r.id === roleId);
-    
+
     // Update user’s role status backward compatibility
     let legacyRole = 'editor';
     if (selectedRole?.name === 'Super Admin') legacyRole = 'super_admin';
@@ -136,6 +140,40 @@ export default function UserManagementPage() {
     }));
   };
 
+  const handleDeleteRole = (role: Role) => {
+    if (role.name === 'Super Admin' || role.name === 'Admin') {
+      return toast.error('This is a protected system role and cannot be deleted.');
+    }
+
+    const assignedCount = profiles.filter(p => p.role_id === role.id).length;
+    if (assignedCount > 0) {
+      return toast.error(`Cannot delete role. It is currently assigned to ${assignedCount} user(s).`);
+    }
+
+    setRoleToDelete(role);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteRole = async () => {
+    if (!roleToDelete) return;
+
+    setSaving(true);
+    const { error } = await supabase.from('roles').delete().eq('id', roleToDelete.id);
+
+    if (error) {
+      toast.error('Failed to delete role');
+    } else {
+      toast.success('Role deleted successfully');
+      if (editingRole?.id === roleToDelete.id) {
+        setEditingRole(null);
+        setRoleForm({ name: '', permissions: {} });
+      }
+      fetchAll();
+      setShowDeleteModal(false);
+    }
+    setSaving(false);
+  };
+
   if (loading) return <div className="loading">Loading Management Access...</div>;
 
   return (
@@ -185,9 +223,9 @@ export default function UserManagementPage() {
                       </td>
                       <td className="capitalize text-muted text-xs">{user.role}</td>
                       <td>
-                        <select 
-                          className="select" 
-                          value={user.role_id || ''} 
+                        <select
+                          className="select"
+                          value={user.role_id || ''}
                           onChange={(e) => handleUpdateUserRole(user.id, e.target.value)}
                           disabled={saving}
                           style={{ fontSize: 13, height: 36 }}
@@ -224,7 +262,21 @@ export default function UserManagementPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button className="btn btn-ghost btn-icon btn-sm"><Edit2 size={14} /></button>
+                      <button className="btn btn-ghost btn-icon btn-sm" title="Edit Role">
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-icon btn-sm"
+                        title="Delete Role"
+                        style={{ color: 'var(--danger)' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRole(r);
+                        }}
+                        disabled={r.name === 'Super Admin' || r.name === 'Admin'}
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -244,10 +296,10 @@ export default function UserManagementPage() {
                 <div>
                   <label className="font-bold block mb-4">Module Access Permissions</label>
                   {editingRole?.name === 'Super Admin' ? (
-                     <div className="p-4 bg-success/10 border border-success/30 rounded-xl text-success font-bold text-sm text-center">
-                        <Save size={16} className="inline mr-2" />
-                        Full Application Administrator Access (ALL unlocked)
-                     </div>
+                    <div className="p-4 bg-success/10 border border-success/30 rounded-xl text-success font-bold text-sm text-center">
+                      <Save size={16} className="inline mr-2" />
+                      Full Application Administrator Access (ALL unlocked)
+                    </div>
                   ) : (
                     <div className="grid-2" style={{ gap: 8 }}>
                       {AVAILABLE_MODULES.map((mod) => (
@@ -273,6 +325,51 @@ export default function UserManagementPage() {
           </div>
         )}
       </div>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {showDeleteModal && roleToDelete && (
+        <div className="modal-overlay" onClick={() => !saving && setShowDeleteModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 450 }}>
+            <div className="modal-header">
+              <h2 className="modal-title" style={{ color: 'var(--danger)' }}>Confirm Deletion</h2>
+              <button
+                className="btn btn-ghost btn-icon"
+                onClick={() => !saving && setShowDeleteModal(false)}
+                disabled={saving}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>
+                Are you sure you want to delete the <strong>{roleToDelete.name}</strong> role? This action cannot be undone.
+              </p>
+              <div style={{ background: 'var(--bg-secondary)', padding: '12px 16px', borderRadius: 8, fontSize: 13, border: '1px solid var(--border)' }}>
+                <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>Note: You can only delete roles that are not assigned to any users.</div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }}
+                onClick={confirmDeleteRole}
+                disabled={saving}
+              >
+                {saving ? 'Deleting...' : 'Yes, Delete Role'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

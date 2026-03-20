@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, Eye } from 'lucide-react';
 import { adToBs } from '@/lib/utils/nepaliDate';
+import Link from 'next/link';
 
 type ReportType = 'shareholders' | 'share_collections' | 'expenses' | 'dividends' | 'loans' | 'banking' | 'roi';
 
@@ -120,6 +121,7 @@ export default function ReportsPage() {
 
   const reports = [
     { type: 'shareholders' as ReportType, title: 'Shareholders Report', desc: 'Export all shareholder details with KYC status' },
+    { type: 'lagat' as any, title: 'Shareholder Lagat (Visual)', desc: 'Printable and visual ledger book following standard format', href: '/dashboard/shareholders/lagat' },
     { type: 'share_collections' as ReportType, title: 'Share Collections Report', desc: 'All share collection records with verification status' },
     { type: 'expenses' as ReportType, title: 'Expenses Report', desc: 'Operational expenses by category and date' },
     { type: 'dividends' as ReportType, title: 'Dividends Report', desc: 'Dividend distributions by fiscal year' },
@@ -146,9 +148,15 @@ export default function ReportsPage() {
                   <h3 style={{ fontSize: 16, fontWeight: 600 }}>{r.title}</h3>
                   <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{r.desc}</p>
                 </div>
-                <button className="btn btn-primary btn-sm" onClick={() => generateReport(r.type)} disabled={generating}>
-                  <Download size={14} /> CSV
-                </button>
+                {(r as any).href ? (
+                  <Link href={(r as any).href} className="btn btn-primary btn-sm flex items-center gap-1">
+                    <Eye size={14} /> View
+                  </Link>
+                ) : (
+                  <button className="btn btn-primary btn-sm" onClick={() => generateReport(r.type)} disabled={generating}>
+                    <Download size={14} /> CSV
+                  </button>
+                )}
               </div>
             </div>
           ))}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import {
@@ -113,14 +114,25 @@ interface Shareholder {
   nominee_name: string | null;
   nominee_relation: string | null;
   share_form_url: string | null;
+  first_name_ne: string | null;
+  middle_name_ne: string | null;
+  last_name_ne: string | null;
+  father_name_ne: string | null;
+  grandfather_name_ne: string | null;
+  nominee_name_ne: string | null;
 }
 
 const emptyForm = {
   first_name: '',
   middle_name: '',
   last_name: '',
+  first_name_ne: '',
+  middle_name_ne: '',
+  last_name_ne: '',
   father_name: '',
   grandfather_name: '',
+  father_name_ne: '',
+  grandfather_name_ne: '',
   spouse_name: '',
   children: '[]',
   in_laws_mother: '',
@@ -152,6 +164,7 @@ const emptyForm = {
   branch_name: '',
   account_no: '',
   nominee_name: '',
+  nominee_name_ne: '',
   nominee_relation: '',
 };
 
@@ -271,12 +284,19 @@ export default function ShareholdersPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const missing = params.get('missing');
+      const district = params.get('district');
+      
       if (missing) {
         setFilterMissing(missing);
         setShowFilters(true);
       }
+      if (district) {
+        setFilterDistrict(district);
+        setShowFilters(true);
+      }
     }
   }, []);
+
 
   const uploadDoc = async (file: File, bucket: string, prefix: string, label?: string) => {
     try {
@@ -324,6 +344,23 @@ export default function ShareholdersPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const autoTransliterate = async (englishText: string, targetField: string) => {
+    if (!englishText || !englishText.trim()) return;
+    try {
+      const res = await fetch(`https://inputtools.google.com/request?text=${encodeURIComponent(englishText)}&itc=ne-t-i0-und&num=1`);
+      const data = await res.json();
+      if (data[0] === 'SUCCESS') {
+        const translatedText = data[1][0][1][0];
+        setForm(prev => ({ 
+          ...prev, 
+          [targetField]: prev[targetField as keyof typeof prev] === '' ? translatedText : prev[targetField as keyof typeof prev] 
+        }));
+      }
+    } catch (err) {
+      console.error('Transliteration failed:', err);
+    }
+  };
+
   const openCreate = () => {
     setEditing(null);
     setForm(emptyForm);
@@ -343,8 +380,13 @@ export default function ShareholdersPage() {
       first_name: sh.first_name,
       middle_name: sh.middle_name || '',
       last_name: sh.last_name,
+      first_name_ne: sh.first_name_ne || '',
+      middle_name_ne: sh.middle_name_ne || '',
+      last_name_ne: sh.last_name_ne || '',
       father_name: sh.father_name || '',
       grandfather_name: sh.grandfather_name || '',
+      father_name_ne: sh.father_name_ne || '',
+      grandfather_name_ne: sh.grandfather_name_ne || '',
       spouse_name: sh.spouse_name || '',
       children: JSON.stringify(sh.children || []),
       in_laws_mother: sh.in_laws?.mother_in_law || '',
@@ -376,6 +418,7 @@ export default function ShareholdersPage() {
       branch_name: sh.bank_details?.[0]?.branch_name || '',
       account_no: sh.bank_details?.[0]?.account_no || '',
       nominee_name: sh.nominee_name || '',
+      nominee_name_ne: sh.nominee_name_ne || '',
       nominee_relation: sh.nominee_relation || '',
     });
     setProfilePic(null);
@@ -414,8 +457,13 @@ export default function ShareholdersPage() {
         first_name: form.first_name,
         middle_name: form.middle_name || null,
         last_name: form.last_name,
+        first_name_ne: form.first_name_ne || null,
+        middle_name_ne: form.middle_name_ne || null,
+        last_name_ne: form.last_name_ne || null,
         father_name: form.father_name || null,
         grandfather_name: form.grandfather_name || null,
+        father_name_ne: form.father_name_ne || null,
+        grandfather_name_ne: form.grandfather_name_ne || null,
         spouse_name: form.spouse_name || null,
         children: JSON.parse(form.children || '[]'),
         in_laws: {
@@ -466,6 +514,7 @@ export default function ShareholdersPage() {
         nominee_citizenship_url: nomineeCitizenshipUrl,
         nominee_profile_pic_url: nomineeProfilePicUrl,
         nominee_name: form.nominee_name || null,
+        nominee_name_ne: form.nominee_name_ne || null,
         nominee_relation: form.nominee_relation || null,
         share_form_url: shareFormUrl,
         created_by: user?.id || null,
@@ -614,6 +663,9 @@ export default function ShareholdersPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Link href="/dashboard/shareholders/lagat" className="btn btn-secondary no-print">
+            <FileText size={16} /> View Lagat
+          </Link>
           <button className="btn btn-secondary no-print" onClick={() => window.print()}>
             <Printer size={16} /> Print
           </button>
@@ -916,8 +968,18 @@ export default function ShareholdersPage() {
                           className="input"
                           value={form.first_name}
                           onChange={(e) => handleInputChange('first_name', e.target.value)}
+                          onBlur={(e) => autoTransliterate(e.target.value, 'first_name_ne')}
                           required
                           placeholder="First name"
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label>First Name (Nepali)</label>
+                        <input
+                          className="input"
+                          value={form.first_name_ne}
+                          onChange={(e) => handleInputChange('first_name_ne', e.target.value)}
+                          placeholder="नेपालीमा नाम"
                         />
                       </div>
                       <div className="input-group">
@@ -926,7 +988,17 @@ export default function ShareholdersPage() {
                           className="input"
                           value={form.middle_name}
                           onChange={(e) => handleInputChange('middle_name', e.target.value)}
+                          onBlur={(e) => autoTransliterate(e.target.value, 'middle_name_ne')}
                           placeholder="Middle name"
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label>Middle Name (Nepali)</label>
+                        <input
+                          className="input"
+                          value={form.middle_name_ne}
+                          onChange={(e) => handleInputChange('middle_name_ne', e.target.value)}
+                          placeholder="Middle name in Nepali"
                         />
                       </div>
                       <div className="input-group">
@@ -935,17 +1007,47 @@ export default function ShareholdersPage() {
                           className="input"
                           value={form.last_name}
                           onChange={(e) => handleInputChange('last_name', e.target.value)}
+                          onBlur={(e) => autoTransliterate(e.target.value, 'last_name_ne')}
                           required
                           placeholder="Last name"
                         />
                       </div>
                       <div className="input-group">
+                        <label>Last Name (Nepali)</label>
+                        <input
+                          className="input"
+                          value={form.last_name_ne}
+                          onChange={(e) => handleInputChange('last_name_ne', e.target.value)}
+                          placeholder="नेपालीमा थर"
+                        />
+                      </div>
+                      <div className="input-group">
                         <label>Father&apos;s Name</label>
-                        <input className="input" value={form.father_name} onChange={(e) => handleInputChange('father_name', e.target.value)} placeholder="Father's name" />
+                        <input 
+                          className="input" 
+                          value={form.father_name} 
+                          onChange={(e) => handleInputChange('father_name', e.target.value)} 
+                          onBlur={(e) => autoTransliterate(e.target.value, 'father_name_ne')}
+                          placeholder="Father's name" 
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label>Father&apos;s Name (Nepali)</label>
+                        <input className="input" value={form.father_name_ne} onChange={(e) => handleInputChange('father_name_ne', e.target.value)} placeholder="Father's name in Nepali" />
                       </div>
                       <div className="input-group">
                         <label>Grandfather&apos;s Name</label>
-                        <input className="input" value={form.grandfather_name} onChange={(e) => handleInputChange('grandfather_name', e.target.value)} placeholder="Grandfather's name" />
+                        <input 
+                          className="input" 
+                          value={form.grandfather_name} 
+                          onChange={(e) => handleInputChange('grandfather_name', e.target.value)} 
+                          onBlur={(e) => autoTransliterate(e.target.value, 'grandfather_name_ne')}
+                          placeholder="Grandfather's name" 
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label>Grandfather&apos;s Name (Nepali)</label>
+                        <input className="input" value={form.grandfather_name_ne} onChange={(e) => handleInputChange('grandfather_name_ne', e.target.value)} placeholder="Grandfather's name in Nepali" />
                       </div>
                       <div className="input-group">
                         <label>Spouse Name</label>
@@ -1201,7 +1303,25 @@ export default function ShareholdersPage() {
                   <>
                     <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: 'var(--text-primary)' }}>Nominee Details</h3>
                     <div className="form-grid mb-6">
-                      <div className="input-group"><label>Nominee Name</label><input className="input" value={form.nominee_name} onChange={(e) => handleInputChange('nominee_name', e.target.value)} placeholder="Nominee name" /></div>
+                      <div className="input-group">
+                        <label>Nominee Name</label>
+                        <input
+                          className="input"
+                          value={form.nominee_name}
+                          onChange={(e) => handleInputChange('nominee_name', e.target.value)}
+                          onBlur={(e) => autoTransliterate(e.target.value, 'nominee_name_ne')}
+                          placeholder="Nominee name"
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label>Nominee Name (Nepali)</label>
+                        <input
+                          className="input"
+                          value={form.nominee_name_ne}
+                          onChange={(e) => handleInputChange('nominee_name_ne', e.target.value)}
+                          placeholder="नेपालीमा नाम"
+                        />
+                      </div>
                       <div className="input-group"><label>Nominee Relation</label><input className="input" value={form.nominee_relation} onChange={(e) => handleInputChange('nominee_relation', e.target.value)} placeholder="e.g., Son, Spouse" /></div>
                     </div>
 

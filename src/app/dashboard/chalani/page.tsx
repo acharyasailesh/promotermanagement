@@ -65,6 +65,8 @@ export default function ChalaniPage() {
   const [deletingChalani, setDeletingChalani] = useState<Chalani | null>(null);
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState<Chalani | null>(null);
+  const [paginatedContent, setPaginatedContent] = useState<string[]>([]);
+  const measureRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
     subject: '',
@@ -237,6 +239,66 @@ export default function ChalaniPage() {
 
   const handlePrint = () => window.print();
 
+  // Real Pagination Logic for Screen Preview
+  useEffect(() => {
+     if (!previewing || !measureRef.current) {
+        setPaginatedContent([]);
+        return;
+     }
+
+     const measure = measureRef.current;
+     // Clean up and wrap content to ensure children exist
+     const rawContent = previewing.content.trim();
+     measure.innerHTML = rawContent.startsWith('<') ? rawContent : `<p>${rawContent}</p>`;
+     
+     const timer = setTimeout(() => {
+        const pages: string[] = [];
+        let currentPage: string[] = [];
+        let currentHeight = 0;
+        const maxHeight = 700; // Safer threshold (~185mm)
+
+        const blocks = Array.from(measure.children);
+        
+        blocks.forEach((block: any) => {
+           let blockHeight = block.offsetHeight;
+           
+           // If a single block is too tall, we need a rough mid-block split
+           if (blockHeight > maxHeight) {
+              // Push what we have
+              if (currentPage.length > 0) {
+                 pages.push(currentPage.join(''));
+                 currentPage = [];
+                 currentHeight = 0;
+              }
+              
+              // Split logic for giant blocks (approximate by character chunks)
+              const text = block.innerHTML;
+              const chunkSize = Math.floor(text.length * (maxHeight / blockHeight));
+              let remaining = text;
+              
+              while (remaining.length > 0) {
+                 const cutPoint = remaining.lastIndexOf(' ', chunkSize) || chunkSize;
+                 const chunk = remaining.substring(0, cutPoint);
+                 pages.push(`<${block.tagName} class="${block.className}">${chunk}</${block.tagName}>`);
+                 remaining = remaining.substring(cutPoint).trim();
+              }
+           } else if (currentHeight + blockHeight > maxHeight && currentPage.length > 0) {
+              pages.push(currentPage.join(''));
+              currentPage = [block.outerHTML];
+              currentHeight = blockHeight;
+           } else {
+              currentPage.push(block.outerHTML);
+              currentHeight += blockHeight;
+           }
+        });
+
+        if (currentPage.length > 0) pages.push(currentPage.join(''));
+        setPaginatedContent(pages.length > 0 ? pages : [previewing.content]);
+     }, 150);
+
+     return () => clearTimeout(timer);
+  }, [previewing]);
+
   const quillModules = {
     toolbar: [
       [{ 'header': [1, 2, 3, false] }],
@@ -401,26 +463,63 @@ export default function ChalaniPage() {
             </div>
           </div>
           <div className="print-canvas">
-            {companySettings?.default_letter_pad_url ? <img src={companySettings.default_letter_pad_url} className="letter-pad-bg" /> : (
-              <div className="default-letterhead"><h1>{companySettings?.company_name}</h1><p>{companySettings?.address}</p><div className="header-line" /></div>
-            )}
-            <div className="letter-content-wrapper">
-               <div className="letter-header-stats">
-                  <div style={{ transform: 'translateY(18px)', marginLeft: '12mm' }}>{previewing.reference_no}</div>
-                  <div style={{ transform: 'translateY(24px)', marginRight: '5mm' }}>{adToBs(previewing.created_at.split('T')[0])}</div>
-               </div>
-               <div className="letter-recipient"><div className="to-label">To,</div><div className="recipient-name">{previewing.recipient_type === 'shareholder' ? `${previewing.shareholders?.first_name} ${previewing.shareholders?.last_name}` : previewing.recipient_name}</div><div className="recipient-addr">{previewing.recipient_type === 'shareholder' ? 'Pokhara, Nepal' : previewing.recipient_address}</div></div>
-               <div className="letter-subject">Subject: <u>{previewing.subject}</u></div>
-               <div className="letter-body ql-editor" dangerouslySetInnerHTML={{ __html: previewing.content }} />
-               <div className="letter-closing">
-                  <div className="signature-area">
-                     {previewing.signatories?.signature_url && <img src={previewing.signatories.signature_url} className="signature-img" />}
-                     <div className="sign-line" />
-                     <div className="sign-name">{previewing.signatories?.name}</div>
-                     <div className="sign-role">{previewing.signatories?.designation}</div>
-                  </div>
-               </div>
-            </div>
+             <div ref={measureRef} className="ql-editor" style={{ 
+                position: 'absolute', 
+                visibility: 'hidden', 
+                width: '170mm', // 210mm - (20mm * 2) padding
+                padding: 0,
+                pointerEvents: 'none',
+                lineHeight: 1.8,
+                fontSize: 18
+             }} />
+
+             {paginatedContent.map((pageHtml, index) => (
+                <div key={index} className="preview-page">
+                   <table className="letter-table" style={companySettings?.default_letter_pad_url ? { backgroundImage: `url(${companySettings.default_letter_pad_url})` } : {}}>
+                      <thead className="letter-thead">
+                         <tr><td><div className="header-spacer" /></td></tr>
+                      </thead>
+                      <tbody>
+                         <tr>
+                            <td>
+                               <div className="letter-content-wrapper">
+                                  {index === 0 && (
+                                     <>
+                                        <div className="letter-header-stats">
+                                           <div className="ref-no">{previewing.reference_no}</div>
+                                           <div className="date">{adToBs(previewing.created_at.split('T')[0])}</div>
+                                        </div>
+                                        <div className="letter-recipient">
+                                           <div className="to-label">To,</div>
+                                           <div className="recipient-name">{previewing.recipient_type === 'shareholder' ? `${previewing.shareholders?.first_name} ${previewing.shareholders?.last_name}` : previewing.recipient_name}</div>
+                                           <div className="recipient-addr">{previewing.recipient_type === 'shareholder' ? 'Pokhara, Nepal' : previewing.recipient_address}</div>
+                                        </div>
+                                        <div className="letter-subject">Subject: <u>{previewing.subject}</u></div>
+                                     </>
+                                  )}
+                                  
+                                  <div className="letter-body ql-editor" dangerouslySetInnerHTML={{ __html: pageHtml }} />
+                                  
+                                  {index === paginatedContent.length - 1 && (
+                                     <div className="letter-closing">
+                                        <div className="signature-area">
+                                           {previewing.signatories?.signature_url && <img src={previewing.signatories.signature_url} className="signature-img" />}
+                                           <div className="sign-line" />
+                                           <div className="sign-name">{previewing.signatories?.name}</div>
+                                           <div className="sign-role">{previewing.signatories?.designation}</div>
+                                        </div>
+                                     </div>
+                                  )}
+                               </div>
+                            </td>
+                         </tr>
+                      </tbody>
+                      <tfoot className="letter-tfoot">
+                         <tr><td><div className="footer-spacer" /></td></tr>
+                      </tfoot>
+                   </table>
+                </div>
+             ))}
           </div>
         </div>
       )}
@@ -453,35 +552,50 @@ export default function ChalaniPage() {
       )}
 
       <style jsx global>{`
-        @page { size: A4; margin: 0; }
+        @page { 
+          size: A4; 
+          margin: 0 !important; 
+        }
         @media print {
           .no-print { display: none !important; }
-          body { background: white !important; padding: 0 !important; margin: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .print-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 10000; overflow: visible; padding: 0 !important; margin: 0 !important; display: block; }
+          body { 
+            background: white !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact; 
+          }
+          .print-overlay { 
+            position: static; 
+            width: 100%; 
+            height: auto; 
+            background: white; 
+            z-index: 10000; 
+            overflow: visible; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+            display: block; 
+          }
           .print-canvas { 
              width: 210mm; 
-             height: 297mm;
-             padding: 45mm 25mm 55mm 25mm !important;
-             border: none; 
-             box-shadow: none; 
-             position: absolute;
-             top: 0;
-             left: 0;
              margin: 0 !important;
+             background-color: white !important;
+             position: relative;
              overflow: visible;
-             background-color: transparent !important;
           }
-          .letter-pad-bg { 
-             position: fixed; 
-             top: 0; 
-             left: 0; 
-             width: 210mm; 
-             height: 297mm; 
-             z-index: -1; 
-             display: block !important;
-             object-fit: fill;
+          .letter-table { 
+             width: 210mm;
+             border-collapse: collapse; 
+             table-layout: fixed; 
+             background-size: 210mm 297mm;
+             background-repeat: repeat-y;
+             background-position: top center;
+             -webkit-print-color-adjust: exact;
+             print-color-adjust: exact;
           }
-          .letter-content-wrapper { position: relative; z-index: 10; }
+          .letter-content-wrapper { padding: 0 25mm !important; word-wrap: break-word; }
+          .header-spacer { height: 45mm; }
+          .footer-spacer { height: 55mm; }
           .print-toolbar { display: none !important; }
         }
         
@@ -491,39 +605,52 @@ export default function ChalaniPage() {
         .print-toolbar { width: 210mm; background: var(--bg-card); padding: 16px 24px; border-radius: 12px; margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
         .print-canvas { 
            width: 210mm; 
-           min-height: 297mm; 
-           background: white; 
-           padding: 45mm 25mm 60mm 25mm; 
+           background: #f1f5f9; 
+           padding: 40px 0; 
            position: relative; 
-           color: black; 
-           font-family: 'Times New Roman', serif; 
-           line-height: 1.6; 
-           box-shadow: 0 0 50px rgba(0,0,0,0.5); 
-           margin-bottom: 20px;
         }
-        .letter-pad-bg { 
-           position: absolute; 
-           top: 0; 
-           left: 0; 
-           width: 100%; 
-           height: 100%; 
-           object-fit: fill; 
-           z-index: 0; 
-           pointer-events: none; 
+        .preview-page {
+           margin-bottom: 40px;
+           page-break-after: always;
         }
-        .letter-content-wrapper { position: relative; z-index: 1; }
-        .letter-header-stats { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 60px; font-size: 16px; padding: 0 5mm; }
+        .letter-table { 
+           width: 210mm; 
+           margin: 0 auto;
+           background-color: white;
+           border-collapse: collapse;
+           table-layout: fixed;
+           background-size: 210mm 297mm;
+           background-repeat: no-repeat;
+           background-position: top center;
+           min-height: 297mm;
+           box-shadow: 0 10px 50px rgba(0,0,0,0.2);
+        }
+        .letter-content-wrapper { padding: 0 20mm; position: relative; }
+        .header-spacer { height: 45mm; }
+        .footer-spacer { height: 55mm; }
+        
+        .letter-header-stats { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 25px; font-size: 16px; padding-top: 5mm; }
+        .ref-no { transform: translateY(18px); margin-left: 10mm; }
+        .date { transform: translateY(24px); margin-right: 5mm; }
+        
         .letter-recipient { margin-bottom: 35px; font-size: 17px; }
         .recipient-name { font-weight: bold; font-size: 20px; }
         .letter-subject { text-align: center; font-weight: bold; font-size: 19px; margin: 35px 0 45px 0; }
-        .letter-body { font-size: 18px; min-height: 350px; margin-bottom: 40px; }
+        .letter-body { font-size: 18px; min-height: 100px; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.8; }
+        .letter-body p { margin-bottom: 15px; }
         
+        @media print {
+          .preview-page { margin-bottom: 0; }
+          .letter-table { box-shadow: none; width: 210mm; height: 297mm; }
+          .print-canvas { padding: 0; background: none; width: 100%; }
+        }
+
         /* Paragraph formatting to match editor */
         .letter-body p { margin-bottom: 12px; line-height: 1.6; }
         .letter-body p:last-child { margin-bottom: 0; }
         .letter-body br { display: block; content: ""; margin-top: 12px; }
 
-        .letter-closing { display: flex; justify-content: flex-end; width: 100%; margin-top: auto; }
+        .letter-closing { display: flex; justify-content: flex-end; width: 100%; margin-top: 40px; }
         .signature-area { 
            width: 250px; 
            text-align: center; 

@@ -371,6 +371,7 @@ export default function DashboardPage() {
                 <div className="card-title">Share Collection Trend</div>
                 <div className="card-subtitle">Monthly share collection inflow</div>
               </div>
+              <Link href="/dashboard/investments" className="btn btn-ghost btn-sm">View All</Link>
             </div>
             {investmentTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
@@ -418,6 +419,7 @@ export default function DashboardPage() {
                 <div className="card-title">Expenses by Category</div>
                 <div className="card-subtitle">Operational cost breakdown</div>
               </div>
+              <Link href="/dashboard/expenses" className="btn btn-ghost btn-sm">Manage</Link>
             </div>
             {expenseByCategory.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>

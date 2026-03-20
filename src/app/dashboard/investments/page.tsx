@@ -37,6 +37,7 @@ interface CompanyBank {
 
 interface ShareholderOption {
   id: string;
+  member_id: number;
   first_name: string;
   last_name: string;
 }
@@ -109,8 +110,14 @@ export default function InvestmentsPage() {
   }, [supabase]);
 
   const fetchShareholders = useCallback(async () => {
-    const { data } = await supabase.from('shareholders').select('id, first_name, last_name').is('deleted_at', null).eq('is_active', true);
-    setShareholders((data || []) as ShareholderOption[]);
+    const { data } = await supabase
+      .from('shareholders')
+      .select('id, first_name, last_name, created_at')
+      .is('deleted_at', null)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true });
+    const members = (data || []).map((sh, idx) => ({ ...sh, member_id: idx + 1 }));
+    setShareholders(members as ShareholderOption[]);
   }, [supabase]);
 
   useEffect(() => {
@@ -557,7 +564,7 @@ export default function InvestmentsPage() {
                     <select className="select" value={form.shareholder_id} onChange={(e) => handleInputChange('shareholder_id', e.target.value)} required>
                       <option value="">Select shareholder...</option>
                       {shareholders.map((sh) => (
-                        <option key={sh.id} value={sh.id}>{sh.first_name} {sh.last_name}</option>
+                        <option key={sh.id} value={sh.id}>#{sh.member_id} - {sh.first_name} {sh.last_name}</option>
                       ))}
                     </select>
                   </div>

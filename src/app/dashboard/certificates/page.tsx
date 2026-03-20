@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
-import { Plus, Search, X, Award, ArrowRightLeft, Edit2, Trash2, Calendar } from 'lucide-react';
+import { Plus, Search, X, Award, ArrowRightLeft, Edit2, Trash2, Calendar, Printer, UserCheck, FileText, Upload } from 'lucide-react';
 import { adToBs } from '@/lib/utils/nepaliDate';
 import NepaliDateInput from '../components/NepaliDateInput';
 
@@ -20,7 +20,14 @@ interface Certificate {
   status: string;
   transferred_to: string | null;
   transfer_reason: string | null;
-  shareholders: { first_name: string; last_name: string };
+  taken_date: string | null;
+  taken_by_type: 'self' | 'behalf' | null;
+  taken_by_name: string | null;
+  taken_by_relationship: string | null;
+  taken_by_mobile: string | null;
+  taken_signature_url: string | null;
+  issued_by_id: string | null;
+  shareholders: { first_name: string; last_name: string; phone_number?: string };
 }
 
 interface ShareholderOption { 
@@ -77,11 +84,24 @@ export default function CertificatesPage() {
   // Sorting state
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
+  // Collection Tracking state
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [trackingCert, setTrackingCert] = useState<Certificate | null>(null);
+  const [collectionForm, setCollectionForm] = useState({
+    taken_date: new Date().toISOString().split('T')[0],
+    taken_by_type: 'self' as 'self' | 'behalf',
+    taken_by_name: '',
+    taken_by_relationship: '',
+    taken_by_mobile: '',
+    taken_signature_url: '',
+  });
+  const [uploading, setUploading] = useState(false);
+
   const fetchCerts = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('share_certificates')
-      .select('*, shareholders!share_certificates_shareholder_id_fkey(first_name, last_name)')
+      .select('*, shareholders!share_certificates_shareholder_id_fkey(first_name, last_name, phone_number)')
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
     if (error) {
@@ -207,6 +227,7 @@ export default function CertificatesPage() {
       kitta_to: kittaTo,
       issue_date: issueDate,
       created_by: user?.id,
+      issued_by_id: user?.id,
     });
     if (error) toast.error(error.message); else { toast.success('Certificate issued'); setShowModal(false); fetchCerts(); }
     setSaving(false);
@@ -269,6 +290,72 @@ export default function CertificatesPage() {
       fetchCerts();
       setShowDeleteModal(false);
       setDeletingCert(null);
+    }
+    setSaving(false);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `certificates/signatures/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(filePath, file);
+
+    const { data: publicUrlData } = supabase.storage
+      .from('documents')
+      .getPublicUrl(filePath);
+
+    if (uploadError) {
+      toast.error('Upload failed: ' + uploadError.message);
+    } else {
+      setCollectionForm(prev => ({ ...prev, taken_signature_url: publicUrlData.publicUrl }));
+      toast.success('File uploaded');
+    }
+    setUploading(false);
+  };
+
+  const openCollectionModal = (cert: Certificate) => {
+    setTrackingCert(cert);
+    setCollectionForm({
+      taken_date: new Date().toISOString().split('T')[0],
+      taken_by_type: 'self',
+      taken_by_name: '',
+      taken_by_relationship: '',
+      taken_by_mobile: cert.shareholders.phone_number || '',
+      taken_signature_url: '',
+    });
+    setShowCollectionModal(true);
+  };
+
+  const handleCollectionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trackingCert) return;
+
+    setSaving(true);
+    const { error } = await supabase
+      .from('share_certificates')
+      .update({
+        taken_date: collectionForm.taken_date,
+        taken_by_type: collectionForm.taken_by_type,
+        taken_by_name: collectionForm.taken_by_type === 'behalf' ? collectionForm.taken_by_name : null,
+        taken_by_relationship: collectionForm.taken_by_type === 'behalf' ? collectionForm.taken_by_relationship : null,
+        taken_by_mobile: collectionForm.taken_by_mobile,
+        taken_signature_url: collectionForm.taken_signature_url,
+      })
+      .eq('id', trackingCert.id);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Collection recorded');
+      setShowCollectionModal(false);
+      fetchCerts();
     }
     setSaving(false);
   };
@@ -352,6 +439,7 @@ export default function CertificatesPage() {
                   <th>Par Value</th>
                   <th>Total Value</th>
                   <th>Issue Date</th>
+                  <th>Tracking</th>
                   <th>Status</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
@@ -386,20 +474,46 @@ export default function CertificatesPage() {
                     <td>{formatCurrency(c.face_value)}</td>
                     <td style={{ fontWeight: 600, color: 'var(--success)' }}>{formatCurrency(c.num_shares * c.face_value)}</td>
                     <td>{adToBs(c.issue_date)}</td>
+                    <td>
+                      {c.taken_date ? (
+                        <div className="flex flex-col">
+                          <span className="badge badge-success" style={{ fontSize: 10, padding: '2px 6px' }}>
+                            Collected
+                          </span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                            {adToBs(c.taken_date)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="badge badge-warning" style={{ fontSize: 10, padding: '2px 6px' }}>
+                          Pending
+                        </span>
+                      )}
+                    </td>
                     <td><span className={`badge ${statusBadge(c.status)}`}>{c.status}</span></td>
                     <td style={{ textAlign: 'right' }}>
                       <div className="flex items-center gap-2" style={{ justifyContent: 'flex-end' }}>
                         {c.status === 'active' && (
-                          <button className="btn btn-ghost btn-sm" onClick={() => handleTransfer(c)} title="Transfer">
-                            <ArrowRightLeft size={14} /> Transfer
-                          </button>
+                          <>
+                            {!c.taken_date && (
+                              <button className="btn btn-ghost btn-sm" onClick={() => openCollectionModal(c)} title="Record Collection" style={{ color: 'var(--primary-light)' }}>
+                                <UserCheck size={14} /> Collect
+                              </button>
+                            )}
+                            <button className="btn btn-ghost btn-sm" onClick={() => handleTransfer(c)} title="Transfer">
+                              <ArrowRightLeft size={14} /> Transfer
+                            </button>
+                          </>
                         )}
-                        <button className="btn btn-ghost btn-icon" onClick={() => openEditCert(c)} title="Edit">
-                          <Edit2 size={16} />
-                        </button>
-                        <button className="btn btn-ghost btn-icon" onClick={() => handleDelete(c)} title="Delete" style={{ color: 'var(--danger)' }}>
-                          <Trash2 size={16} />
-                        </button>
+                         <button className="btn btn-ghost btn-icon" onClick={() => window.open(`/dashboard/certificates/${c.id}/print`, '_blank')} title="Print">
+                           <Printer size={16} />
+                         </button>
+                         <button className="btn btn-ghost btn-icon" onClick={() => openEditCert(c)} title="Edit">
+                           <Edit2 size={16} />
+                         </button>
+                         <button className="btn btn-ghost btn-icon" onClick={() => handleDelete(c)} title="Delete" style={{ color: 'var(--danger)' }}>
+                           <Trash2 size={16} />
+                         </button>
                       </div>
                     </td>
                   </tr>
@@ -529,6 +643,122 @@ export default function CertificatesPage() {
         </div>
       )}
 
+      {/* RECORD COLLECTION MODAL */}
+      {showCollectionModal && trackingCert && (
+        <div className="modal-overlay" onClick={() => !saving && setShowCollectionModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Record Certificate Collection</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => !saving && setShowCollectionModal(false)} disabled={saving}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleCollectionSubmit}>
+              <div className="modal-body">
+                <div style={{ padding: '10px 16px', background: 'var(--bg-secondary)', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
+                  <div><strong>Shareholder:</strong> {trackingCert.shareholders.first_name} {trackingCert.shareholders.last_name}</div>
+                  <div><strong>Kitta Range:</strong> {trackingCert.kitta_from} — {trackingCert.kitta_to} ({trackingCert.num_shares} Kitta)</div>
+                </div>
+
+                <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                  <div className="input-group">
+                    <label>Collection Date (BS)</label>
+                    <NepaliDateInput 
+                      value={collectionForm.taken_date} 
+                      onChange={(ad) => setCollectionForm(p => ({ ...p, taken_date: ad }))} 
+                      align="left"
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label>Collected By</label>
+                    <select 
+                      className="select" 
+                      value={collectionForm.taken_by_type} 
+                      onChange={(e) => setCollectionForm(p => ({ ...p, taken_by_type: e.target.value as 'self' | 'behalf' }))}
+                    >
+                      <option value="self">Shareholder (Self)</option>
+                      <option value="behalf">Authorized Representative (On Behalf)</option>
+                    </select>
+                  </div>
+
+                  {collectionForm.taken_by_type === 'behalf' && (
+                    <>
+                      <div className="input-group">
+                        <label>Representative Name <span className="required">*</span></label>
+                        <input 
+                          type="text" 
+                          className="input" 
+                          value={collectionForm.taken_by_name} 
+                          onChange={(e) => setCollectionForm(p => ({ ...p, taken_by_name: e.target.value }))} 
+                          placeholder="Full Name"
+                          required 
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label>Relationship <span className="required">*</span></label>
+                        <input 
+                          type="text" 
+                          className="input" 
+                          value={collectionForm.taken_by_relationship} 
+                          onChange={(e) => setCollectionForm(p => ({ ...p, taken_by_relationship: e.target.value }))} 
+                          placeholder="e.g. Son, Daughter, Agent"
+                          required 
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="input-group">
+                    <label>Mobile Number <span className="required">*</span></label>
+                    <input 
+                      type="text" 
+                      className="input" 
+                      value={collectionForm.taken_by_mobile} 
+                      onChange={(e) => setCollectionForm(p => ({ ...p, taken_by_mobile: e.target.value }))} 
+                      placeholder="Mobile number"
+                      required 
+                    />
+                  </div>
+
+                  <div className="input-group" style={{ gridColumn: 'span 2' }}>
+                    <label>Signature/Authorization Proof {collectionForm.taken_by_type === 'behalf' && <span className="required">*</span>}</label>
+                    {collectionForm.taken_signature_url ? (
+                      <div className="flex items-center gap-3 p-3 bg-success-light border border-success/30 rounded-lg">
+                        <FileText size={20} className="text-success" />
+                        <span className="text-xs flex-1 truncate">Document uploaded</span>
+                        <button type="button" className="btn btn-ghost btn-sm text-danger" onClick={() => setCollectionForm(p => ({ ...p, taken_signature_url: '' }))}>Remove</button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <input 
+                          type="file" 
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                          onChange={handleFileUpload}
+                          disabled={uploading}
+                        />
+                        <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                          <Upload size={24} className="text-gray-400 mb-2" />
+                          <span className="text-sm text-gray-600">{uploading ? 'Uploading...' : 'Click to upload signature/proof'}</span>
+                          <span className="text-xs text-gray-400 mt-1">PNG, JPG, or PDF (Max 5MB)</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowCollectionModal(false)}>Cancel</button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary" 
+                  disabled={saving || uploading || (collectionForm.taken_by_type === 'behalf' && !collectionForm.taken_signature_url)}
+                >
+                  {saving ? 'Recording...' : 'Record Collection'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* EDIT CERTIFICATE MODAL */}
       {showEditModal && editingCert && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
@@ -578,6 +808,26 @@ export default function CertificatesPage() {
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </div>
+
+                  {/* Tracking Info (Read-only for now, but editable via collection modal) */}
+                  {editingCert.taken_date && (
+                    <div style={{ gridColumn: 'span 2', marginTop: 12, padding: 12, border: '1px solid var(--border-color)', borderRadius: 8, background: 'var(--bg-secondary)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase' }}>Collection Info</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
+                        <div><span className="text-muted">Collected On:</span> {adToBs(editingCert.taken_date)}</div>
+                        <div><span className="text-muted">Type:</span> {editingCert.taken_by_type === 'self' ? 'Self' : 'On Behalf'}</div>
+                        {editingCert.taken_by_name && <div><span className="text-muted">Name:</span> {editingCert.taken_by_name}</div>}
+                        {editingCert.taken_by_mobile && <div><span className="text-muted">Mobile:</span> {editingCert.taken_by_mobile}</div>}
+                        {editingCert.taken_signature_url && (
+                          <div style={{ gridColumn: 'span 2' }}>
+                            <a href={editingCert.taken_signature_url} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                              <FileText size={14} /> View Proof Document
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">
