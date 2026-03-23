@@ -29,6 +29,7 @@ import {
   BarChart,
   MessageSquareWarning,
   Banknote,
+  Megaphone,
 } from "lucide-react";
 
 interface Profile {
@@ -49,6 +50,7 @@ const navSections = [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/dashboard/analytics", label: "Analytics", icon: BarChart },
       { href: "/dashboard/analytics/loans", label: "Loan Analytics", icon: Banknote },
+      { href: "/dashboard/agm", label: "AGM Analytics", icon: Megaphone },
     ],
   },
   {
