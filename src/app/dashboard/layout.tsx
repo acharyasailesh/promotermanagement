@@ -127,6 +127,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const supabase = createClient();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [company, setCompany] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
@@ -171,6 +172,16 @@ export default function DashboardLayout({
       }
 
       if (data) setProfile(data as Profile);
+
+      const { data: settings } = await supabase
+        .from("company_settings")
+        .select("company_name, address")
+        .limit(1)
+        .single();
+      
+      if (settings) {
+        setCompany(settings);
+      }
     };
 
     const fetchNotifications = async () => {
@@ -275,10 +286,13 @@ export default function DashboardLayout({
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-header">
           <Link href="/dashboard" className="sidebar-logo">
-            <div className="sidebar-logo-icon">GB</div>
+            <div className="sidebar-logo-icon">
+              {company ? getInitials(company.company_name) : "GB"}
+            </div>
             <div>
-              <div className="sidebar-logo-text">Global Bihani</div>
-              <div className="sidebar-logo-sub">Investment Pvt Ltd</div>
+              <div className="sidebar-logo-text" style={{ fontSize: "0.9rem", lineHeight: "1.2" }}>
+                {company?.company_name || "Loading..."}
+              </div>
             </div>
           </Link>
           <button
