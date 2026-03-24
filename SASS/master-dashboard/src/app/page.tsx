@@ -3,6 +3,52 @@
 import { useState } from 'react';
 import { Database, ShieldCheck, Mail, Building, Key, Loader2, ArrowRight } from 'lucide-react';
 
+const PLAN_FEATURES: Record<string, { title: string; price: string; features: string[]; color: string; badge: string }> = {
+  standard: {
+    title: 'Standard Level',
+    price: 'Basic Package',
+    badge: 'bg-indigo-100 text-indigo-700',
+    color: 'indigo',
+    features: [
+      'Shareholder Tracking (Up to 100 members)',
+      'Dynamic Share Certificate Generation',
+      'Investment & Dividend Accounting',
+      'Standard Income/Expense Ledger',
+      'Real-time Dashboard Statistics',
+      'Security Access Control (Super Admin + Editor)',
+    ]
+  },
+  premium: {
+    title: 'Premium Level',
+    price: 'Advanced Package',
+    badge: 'bg-purple-100 text-purple-700',
+    color: 'purple',
+    features: [
+      'Unlimited Shareholders & Certificates',
+      'Advanced Loan Management Subsystem',
+      'Petty Cash & Bank Reconciliation Logic',
+      'AGM Management with Proxy Calculations',
+      'Comprehensive Audit Tracing & Security',
+      'Add up to 5 Multi-staff Operator roles',
+      'Dedicated PDF & CSV Report Exports'
+    ]
+  },
+  enterprise: {
+    title: 'Enterprise Unlimited',
+    price: 'Enterprise Grade',
+    badge: 'bg-green-100 text-green-700',
+    color: 'emerald',
+    features: [
+      'All functionality in Premium level subscription',
+      'Specialized Higher Performance Database Node',
+      'Direct Direct Instance Snapshot Backups',
+      'Multi-Branch/Division Reporting Tiers',
+      'Custom Operator Workflows & Logic Modifications',
+      'Extended 24/7 Dedicated Priority Technical Desk'
+    ]
+  }
+};
+
 export default function SetupWizard() {
   const [loading, setLoading] = useState(false);
   const [successData, setSuccessData] = useState<any>(null);
@@ -81,117 +127,153 @@ export default function SetupWizard() {
     );
   }
 
+  const activePlan = PLAN_FEATURES[formData.planTier as keyof typeof PLAN_FEATURES] || PLAN_FEATURES.standard;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-xl border border-gray-100">
-        <div>
-          <h2 className="text-center text-3xl font-extrabold text-gray-900 border-b pb-4 mb-2">Master Controller</h2>
-          <p className="text-center text-sm text-gray-500">
-            SaaS Setup Wizard — Provision a new customer tenant automatically.
-          </p>
+      <div className="max-w-4xl w-full flex flex-col md:flex-row bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
+        
+        {/* Left Side: Setup Wizard Form */}
+        <div className="flex-1 p-10 space-y-8 border-r border-gray-100">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900 border-b pb-4 mb-2">Master Controller</h2>
+            <p className="text-sm text-gray-500">
+              SaaS Setup Wizard — Provision a new customer tenant automatically.
+            </p>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md">
+              <p className="text-sm text-red-700 font-medium">{error}</p>
+            </div>
+          )}
+
+          <form className="mt-8 space-y-5" onSubmit={handleProvision}>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="companyName" className="block text-sm font-semibold text-gray-700 mb-1">Company Name</label>
+                <div className="relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Building className="text-gray-400" size={18} />
+                  </div>
+                  <input
+                    id="companyName"
+                    type="text"
+                    required
+                    value={formData.companyName}
+                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                    className="pl-10 block w-full outline-none sm:text-sm border-gray-300 rounded-xl border p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50/50"
+                    placeholder="Everest Investments Pvt Ltd"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="contactEmail" className="block text-sm font-semibold text-gray-700 mb-1">Admin Email</label>
+                <div className="relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="text-gray-400" size={18} />
+                  </div>
+                  <input
+                    id="contactEmail"
+                    type="email"
+                    required
+                    value={formData.contactEmail}
+                    onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                    className="pl-10 block w-full outline-none sm:text-sm border-gray-300 rounded-xl border p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50/50"
+                    placeholder="admin@everest.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="databaseUrl" className="block text-sm font-semibold text-gray-700 mb-1">Tenant Target Database (Supabase Postgres URL)</label>
+                <div className="relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Database className="text-gray-400" size={18} />
+                  </div>
+                  <input
+                    id="databaseUrl"
+                    type="password"
+                    required
+                    value={formData.databaseUrl}
+                    onChange={(e) => setFormData({ ...formData, databaseUrl: e.target.value })}
+                    className="pl-10 block w-full outline-none sm:text-sm border-gray-300 rounded-xl border p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50/50"
+                    placeholder="postgresql://postgres:password@db.supabase.co:5432/postgres"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-400 italic">This must be a completely blank, new Supabase database.</p>
+              </div>
+
+              <div>
+                <label htmlFor="planTier" className="block text-sm font-semibold text-gray-700 mb-1">Subscription Plan</label>
+                <div className="relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Key className="text-gray-400" size={18} />
+                  </div>
+                  <select
+                    id="planTier"
+                    value={formData.planTier}
+                    onChange={(e) => setFormData({ ...formData, planTier: e.target.value })}
+                    className="pl-10 block w-full outline-none sm:text-sm border-gray-300 rounded-xl border p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50/50 appearance-none pointer"
+                  >
+                    <option value="standard">Standard Level</option>
+                    <option value="premium">Premium Level</option>
+                    <option value="enterprise">Enterprise (Unlimited)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className={`group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all shadow-lg
+                  ${loading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 transform hover:-translate-y-0.5'}`}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" />
+                    Building Database blueprint...
+                  </>
+                ) : (
+                  'Run Setup Wizard & Provision'
+                )}
+              </button>
+            </div>
+          </form>
         </div>
 
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md">
-            <p className="text-sm text-red-700 font-medium">{error}</p>
-          </div>
-        )}
+        {/* Right Side: Features Panel Showcase */}
+        <div className="w-full md:w-96 bg-gray-50 p-10 flex flex-col justify-center border-t md:border-t-0 border-gray-100">
+          <div className="transition-all duration-300">
+            <span className={`inline-flex px-3 py-1 text-xs font-black tracking-wide rounded-full uppercase mb-4 ${activePlan.badge}`}>
+              {activePlan.price}
+            </span>
+            <h3 className="text-2xl font-black text-gray-900 mb-1">{activePlan.title}</h3>
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-bold border-b pb-4 mb-4">Plan Inclusions</p>
+            
+            <ul className="space-y-4">
+              {activePlan.features.map((feat, i) => (
+                <li key={i} className="flex items-start text-sm text-gray-600 leading-snug">
+                  <div className="mt-0.5 mr-2.5">
+                    <div className={`p-0.5 rounded-full bg-white border border-${activePlan.color}-200 text-${activePlan.color}-600 shadow-sm`}>
+                      <ShieldCheck size={14} />
+                    </div>
+                  </div>
+                  <span>{feat}</span>
+                </li>
+              ))}
+            </ul>
 
-        <form className="mt-8 space-y-6" onSubmit={handleProvision}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Building className="text-gray-400" size={18} />
-                </div>
-                <input
-                  id="companyName"
-                  type="text"
-                  required
-                  value={formData.companyName}
-                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                  className="pl-10 block w-full outline-none sm:text-sm border-gray-300 rounded-xl border p-3 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
-                  placeholder="Everest Investments Pvt Ltd"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="text-gray-400" size={18} />
-                </div>
-                <input
-                  id="contactEmail"
-                  type="email"
-                  required
-                  value={formData.contactEmail}
-                  onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                  className="pl-10 block w-full outline-none sm:text-sm border-gray-300 rounded-xl border p-3 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
-                  placeholder="admin@everest.com"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="databaseUrl" className="block text-sm font-medium text-gray-700 mb-1">Tenant Target Database (Supabase Postgres URL)</label>
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Database className="text-gray-400" size={18} />
-                </div>
-                <input
-                  id="databaseUrl"
-                  type="password"
-                  required
-                  value={formData.databaseUrl}
-                  onChange={(e) => setFormData({ ...formData, databaseUrl: e.target.value })}
-                  className="pl-10 block w-full outline-none sm:text-sm border-gray-300 rounded-xl border p-3 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
-                  placeholder="postgresql://postgres:password@db.supabase.co:5432/postgres"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-400 italic">This must be a completely blank, new Supabase database.</p>
-            </div>
-
-            <div>
-              <label htmlFor="planTier" className="block text-sm font-medium text-gray-700 mb-1">Subscription Plan</label>
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Key className="text-gray-400" size={18} />
-                </div>
-                <select
-                  id="planTier"
-                  value={formData.planTier}
-                  onChange={(e) => setFormData({ ...formData, planTier: e.target.value })}
-                  className="pl-10 block w-full outline-none sm:text-sm border-gray-300 rounded-xl border p-3 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow bg-transparent"
-                >
-                  <option value="standard">Standard Level</option>
-                  <option value="premium">Premium Level</option>
-                  <option value="enterprise">Enterprise (Unlimited)</option>
-                </select>
-              </div>
+            <div className="mt-8 p-4 bg-white/80 backdrop-blur rounded-2xl border border-gray-100 shadow-sm">
+              <span className="block text-xs font-bold text-gray-800 mb-1">Automated Setup</span>
+              <span className="block text-xs text-gray-400">This tier automatically activates the feature suite directly during initial provisioning sequences immediately without any downtime.</span>
             </div>
           </div>
+        </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-xl text-white outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all shadow-md
-                ${loading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 transform hover:-translate-y-0.5'}`}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" />
-                  Building Database Blueprint...
-                </>
-              ) : (
-                'Run Setup Wizard & Provision'
-              )}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );
