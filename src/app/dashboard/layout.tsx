@@ -153,8 +153,8 @@ export default function DashboardLayout({
         .eq("id", user.id)
         .single();
 
-      // Fallback if roles table/column doesn't exist, or if relationship fails
-      if (error && (error.code === 'PGRST200' || error.message?.includes("roles") || error.message?.includes("relationship"))) {
+      // Fallback for ANY schema mismatch error (missing column, relationship, etc.)
+      if (error && error.code !== 'PGRST116') {
         const { data: legacyData, error: legacyError } = await supabase
           .from("profiles")
           .select("*")
