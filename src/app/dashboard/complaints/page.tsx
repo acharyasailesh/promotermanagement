@@ -877,7 +877,7 @@ export default function ComplaintsPage() {
                         {commentAttachment.type.startsWith('image/') ? (
                            <img src={URL.createObjectURL(commentAttachment)} alt="preview" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover' }} />
                         ) : (
-                           <div style={{ width: 48, height: 48, background: 'var(--bg-primary)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyCenter: 'center' }}><FileText size={20} /></div>
+                           <div style={{ width: 48, height: 48, background: 'var(--bg-primary)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FileText size={20} /></div>
                         )}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{commentAttachment.name}</div>
