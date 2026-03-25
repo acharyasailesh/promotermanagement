@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   description: "SaaS Management and Provisioning Dashboard",
 };
 
+import LogoutButton from "@/components/LogoutButton";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -48,20 +50,7 @@ export default function RootLayout({
 
             <div className="flex items-center gap-3">
               <div className="h-6 w-px bg-gray-200 mx-1"></div>
-              <button 
-                onClick={async () => {
-                  const { createClient } = await import('@supabase/supabase-js');
-                  const supabase = createClient(
-                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-                  );
-                  await supabase.auth.signOut();
-                  window.location.href = '/login';
-                }}
-                className="text-[10px] font-black text-red-500 uppercase tracking-widest px-3 py-1.5 rounded-xl border border-red-50 hover:bg-red-50 transition-all"
-              >
-                Log Out
-              </button>
+              <LogoutButton />
             </div>
           </div>
         </header>

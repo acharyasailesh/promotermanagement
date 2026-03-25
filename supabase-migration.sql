@@ -21,7 +21,11 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, full_name, avatar_url)
-  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'full_name', ''), NEW.raw_user_meta_data->>'avatar_url');
+  VALUES (
+    NEW.id, 
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''), 
+    COALESCE(NEW.raw_user_meta_data->>'avatar_url', '')
+  );
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -350,6 +354,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- PROFILES
 CREATE POLICY "profiles_select" ON public.profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "profiles_insert" ON public.profiles FOR INSERT WITH CHECK (true);
 CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE TO authenticated USING (id = auth.uid());
 
 -- SHAREHOLDERS

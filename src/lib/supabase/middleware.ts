@@ -40,8 +40,12 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from login
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
+  // Redirect authenticated users away from login, except if they're resetting their password
+  if (
+    user && 
+    request.nextUrl.pathname.startsWith('/login') && 
+    !request.nextUrl.pathname.startsWith('/login/reset-password')
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);

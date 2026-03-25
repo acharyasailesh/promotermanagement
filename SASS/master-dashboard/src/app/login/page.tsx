@@ -22,12 +22,14 @@ export default function LoginPage() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
        setError(error.message);
        setLoading(false);
-    } else {
+    } else if (data.session) {
+       // Manually set the cookie for the middleware to see
+       document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=${data.session.expires_in}; SameSite=Lax`;
        router.push('/');
     }
   };

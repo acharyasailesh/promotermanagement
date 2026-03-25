@@ -175,7 +175,8 @@ export default function DashboardLayout({
 
       const { data: settings } = await supabase
         .from("company_settings")
-        .select("company_name, address")
+        .select("company_name, address, logo_url")
+        .order("updated_at", { ascending: false })
         .limit(1)
         .single();
       
@@ -286,8 +287,12 @@ export default function DashboardLayout({
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-header">
           <Link href="/dashboard" className="sidebar-logo">
-            <div className="sidebar-logo-icon">
-              {company ? getInitials(company.company_name) : "GB"}
+            <div className={`sidebar-logo-icon ${company?.logo_url ? 'has-logo' : ''}`}>
+              {company?.logo_url ? (
+                <img src={company.logo_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              ) : (
+                company ? getInitials(company.company_name) : "GB"
+              )}
             </div>
             <div>
               <div className="sidebar-logo-text" style={{ fontSize: "0.9rem", lineHeight: "1.2" }}>

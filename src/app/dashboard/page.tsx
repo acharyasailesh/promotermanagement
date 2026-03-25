@@ -52,6 +52,7 @@ const COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#818cf8', '#22c55e'
 
 export default function DashboardPage() {
   const supabase = createClient();
+  const [company, setCompany] = useState<any>(null);
   const [stats, setStats] = useState<DashboardStats>({
     totalShareholders: 0,
     totalShareCollection: 0,
@@ -74,6 +75,15 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (settings) setCompany(settings);
+
       // Total shareholders
       const { count: shareholderCount } = await supabase
         .from('shareholders')
@@ -245,7 +255,7 @@ export default function DashboardPage() {
         <div className="page-header">
           <div>
             <h1 className="page-title">Dashboard</h1>
-            <p className="page-subtitle">Welcome to Global Bihani Investment</p>
+            <p className="page-subtitle">Welcome to {company?.company_name || 'Global Bihani Investment'}</p>
           </div>
         </div>
         <div className="page-body">
@@ -276,7 +286,7 @@ export default function DashboardPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Global Bihani Investment Pvt Ltd — Pokhara, Newroad</p>
+          <p className="page-subtitle">{company?.company_name || 'Global Bihani Investment'} — {company?.address || 'Pokhara, Newroad'}</p>
         </div>
       </div>
 

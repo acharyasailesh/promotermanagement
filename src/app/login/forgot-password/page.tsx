@@ -1,49 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [company, setCompany] = useState<any>(null);
-  const router = useRouter();
+  const [submitted, setSubmitted] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
-    const fetchCompany = async () => {
-      const { data } = await supabase
-        .from('company_settings')
-        .select('company_name, address')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (data) setCompany(data);
-    };
-    fetchCompany();
-  }, [supabase]);
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2) || 'GB';
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleResetRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/login/reset-password`,
     });
 
     if (error) {
@@ -52,9 +25,9 @@ export default function LoginPage() {
       return;
     }
 
-    toast.success('Welcome back!');
-    router.push('/dashboard');
-    router.refresh();
+    setSubmitted(true);
+    toast.success('Password reset link sent to your email!');
+    setLoading(false);
   };
 
   return (
@@ -69,54 +42,54 @@ export default function LoginPage() {
         <div className="login-header">
           <div className="login-logo">
             <div className="sidebar-logo-icon" style={{ width: 48, height: 48, fontSize: 20 }}>
-              {company ? getInitials(company.company_name) : 'GB'}
+              GB
             </div>
           </div>
-          <h1 className="login-title">{company?.company_name || 'Global Bihani Investment'}</h1>
-          <p className="login-subtitle">Admin Management System</p>
+          <h1 className="login-title">Reset Your Password</h1>
+          <p className="login-subtitle">
+            {submitted 
+              ? "Check your email for the reset link" 
+              : "Enter your email to receive a password reset link"}
+          </p>
         </div>
 
-        <form onSubmit={handleLogin} className="login-form">
-          <div className="input-group">
-            <label htmlFor="email">Email Address</label>
-            <input
-              id="email"
-              type="email"
-              className="input"
-              placeholder="admin@globalbihani.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="input-group">
-            <div className="flex justify-between items-center mb-1">
-              <label htmlFor="password">Password</label>
-              <Link href="/login/forgot-password" style={{ color: '#8b5cf6', fontSize: '13px', textDecoration: 'none' }}>
-                Forgot Password?
-              </Link>
+        {!submitted ? (
+          <form onSubmit={handleResetRequest} className="login-form">
+            <div className="input-group">
+              <label htmlFor="email">Email Address</label>
+              <input
+                id="email"
+                type="email"
+                className="input"
+                placeholder="admin@globalbihani.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
-            <input
-              id="password"
-              type="password"
-              className="input"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
 
-          <button
-            type="submit"
-            className="btn btn-primary btn-lg w-full"
-            disabled={loading}
-            id="login-button"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg w-full"
+              disabled={loading}
+            >
+              {loading ? 'Sending link...' : 'Send Reset Link'}
+            </button>
+          </form>
+        ) : (
+          <div className="text-center" style={{ marginTop: '20px' }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
+              We've sent a password reset link to <strong>{email}</strong>.
+              Please check your inbox and follow the instructions.
+            </p>
+          </div>
+        )}
+
+        <div style={{ textAlign: 'center', marginTop: '24px' }}>
+          <Link href="/login" style={{ color: '#8b5cf6', fontSize: '14px', textDecoration: 'none' }}>
+            &larr; Back to Login
+          </Link>
+        </div>
 
         <p className="login-footer">
           Pokhara, Newroad &bull; Secure Admin Portal

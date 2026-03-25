@@ -216,7 +216,7 @@ export default function UserManagementPage() {
                       <td>
                         <div className="flex items-center gap-3">
                           <div className="sidebar-user-avatar">
-                            {user.full_name[0].toUpperCase()}
+                            {(user.full_name || '?')[0].toUpperCase()}
                           </div>
                           <div className="font-bold">{user.full_name}</div>
                         </div>

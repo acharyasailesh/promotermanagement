@@ -232,7 +232,7 @@ export default function SettingsPage() {
 
     const [settRes, fyRes, profRes, bankRes, chqRes, sigRes] =
       await Promise.all([
-        supabase.from("company_settings").select("*").limit(1).single(),
+        supabase.from("company_settings").select("*").order("updated_at", { ascending: false }).limit(1).single(),
         supabase
           .from("fiscal_years")
           .select("*")

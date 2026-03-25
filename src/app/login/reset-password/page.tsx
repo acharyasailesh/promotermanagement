@@ -1,49 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
+export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [company, setCompany] = useState<any>(null);
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    const fetchCompany = async () => {
-      const { data } = await supabase
-        .from('company_settings')
-        .select('company_name, address')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (data) setCompany(data);
-    };
-    fetchCompany();
-  }, [supabase]);
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2) || 'GB';
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const { error } = await supabase.auth.updateUser({
+      password: password,
     });
 
     if (error) {
@@ -52,7 +36,7 @@ export default function LoginPage() {
       return;
     }
 
-    toast.success('Welcome back!');
+    toast.success('Password updated successfully!');
     router.push('/dashboard');
     router.refresh();
   };
@@ -69,34 +53,16 @@ export default function LoginPage() {
         <div className="login-header">
           <div className="login-logo">
             <div className="sidebar-logo-icon" style={{ width: 48, height: 48, fontSize: 20 }}>
-              {company ? getInitials(company.company_name) : 'GB'}
+              GB
             </div>
           </div>
-          <h1 className="login-title">{company?.company_name || 'Global Bihani Investment'}</h1>
-          <p className="login-subtitle">Admin Management System</p>
+          <h1 className="login-title">Create New Password</h1>
+          <p className="login-subtitle">Enter your new secure password below</p>
         </div>
 
-        <form onSubmit={handleLogin} className="login-form">
+        <form onSubmit={handleResetPassword} className="login-form">
           <div className="input-group">
-            <label htmlFor="email">Email Address</label>
-            <input
-              id="email"
-              type="email"
-              className="input"
-              placeholder="admin@globalbihani.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="input-group">
-            <div className="flex justify-between items-center mb-1">
-              <label htmlFor="password">Password</label>
-              <Link href="/login/forgot-password" style={{ color: '#8b5cf6', fontSize: '13px', textDecoration: 'none' }}>
-                Forgot Password?
-              </Link>
-            </div>
+            <label htmlFor="password">New Password</label>
             <input
               id="password"
               type="password"
@@ -108,13 +74,25 @@ export default function LoginPage() {
             />
           </div>
 
+          <div className="input-group">
+            <label htmlFor="confirm-password">Confirm New Password</label>
+            <input
+              id="confirm-password"
+              type="password"
+              className="input"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+          </div>
+
           <button
             type="submit"
             className="btn btn-primary btn-lg w-full"
             disabled={loading}
-            id="login-button"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Updating Password...' : 'Update Password'}
           </button>
         </form>
 

@@ -666,6 +666,9 @@ export default function ShareholdersPage() {
           <Link href="/dashboard/shareholders/lagat" className="btn btn-secondary no-print">
             <FileText size={16} /> View Lagat
           </Link>
+          <Link href="/dashboard/shareholders/import" className="btn btn-secondary no-print">
+            <Upload size={16} /> Bulk Import
+          </Link>
           <button className="btn btn-secondary no-print" onClick={() => window.print()}>
             <Printer size={16} /> Print
           </button>
