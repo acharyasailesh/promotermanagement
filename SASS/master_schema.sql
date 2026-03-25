@@ -7,10 +7,26 @@ CREATE TABLE public.tenants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_name TEXT NOT NULL,
   contact_email TEXT NOT NULL,
+  ceo_name TEXT,
+  website TEXT,
+  phone TEXT,
   database_url TEXT NOT NULL,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'pending')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- For dynamic analytics and billing
+CREATE TABLE public.pricing_tiers (
+  plan_name TEXT PRIMARY KEY,
+  monthly_price NUMERIC NOT NULL,
+  currency TEXT DEFAULT 'USD'
+);
+
+INSERT INTO public.pricing_tiers (plan_name, monthly_price) VALUES
+('Startup', 50),
+('Growth', 150),
+('Enterprise', 500);
 
 CREATE TABLE public.licenses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

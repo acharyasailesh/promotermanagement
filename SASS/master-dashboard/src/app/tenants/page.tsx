@@ -14,7 +14,9 @@ import {
   XCircle,
   Clock,
   RefreshCw,
-  Copy
+  Copy,
+  Globe,
+  Mail
 } from 'lucide-react';
 
 interface License {
@@ -29,6 +31,8 @@ interface Tenant {
   id: string;
   company_name: string;
   contact_email: string;
+  ceo_name?: string;
+  website?: string;
   database_url: string;
   status: 'active' | 'suspended' | 'pending';
   created_at: string;
@@ -97,6 +101,20 @@ export default function TenantsManagement() {
       if (!res.ok) throw new Error('Extension failed');
       fetchTenants();
       alert(`Extended ${tenant.company_name} by ${days} days!`);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const sendEmail = async (tenant: Tenant) => {
+    try {
+      const res = await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId: tenant.id })
+      });
+      if (!res.ok) throw new Error('Email delivery failed');
+      alert(`License expiry notice sent to ${tenant.contact_email}`);
     } catch (err: any) {
       alert(err.message);
     }
@@ -205,7 +223,12 @@ export default function TenantsManagement() {
                         </div>
                         <div>
                           <p className="font-bold text-gray-900 text-sm">{tenant.company_name}</p>
-                          <p className="text-xs text-gray-400 truncate w-40">{tenant.contact_email}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">{tenant.ceo_name || 'No CEO'}</span>
+                            {tenant.website && (
+                              <a href={tenant.website} target="_blank" className="text-indigo-500 hover:text-indigo-700"><Globe size={10} /></a>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -253,6 +276,13 @@ export default function TenantsManagement() {
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex items-center justify-end gap-2 pr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <button 
+                            onClick={() => sendEmail(tenant)}
+                            className="p-2 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 text-blue-500 transition-all"
+                            title="Send Expiry Alert"
+                         >
+                            <Mail size={14} />
+                         </button>
                          <button 
                             onClick={() => extendLicense(tenant)}
                             className="p-2 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 text-amber-500 transition-all"

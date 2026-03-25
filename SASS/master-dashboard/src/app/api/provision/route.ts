@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(req: Request) {
   try {
-    const { companyName, contactEmail, databaseUrl, planTier } = await req.json();
+    const { companyName, contactEmail, ceoName, website, databaseUrl, planTier } = await req.json();
 
     if (!companyName || !databaseUrl) {
       return NextResponse.json({ error: 'Company Name and Database URL are required' }, { status: 400 });
@@ -69,6 +69,8 @@ export async function POST(req: Request) {
       .insert({ 
         company_name: companyName, 
         contact_email: contactEmail, 
+        ceo_name: ceoName,
+        website: website,
         database_url: databaseUrl 
       })
       .select()

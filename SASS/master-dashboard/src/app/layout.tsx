@@ -39,23 +39,29 @@ export default function RootLayout({
               <span className="text-sm font-black text-gray-900 tracking-tight">TIFL<span className="text-indigo-600 ml-1">MASTER</span></span>
             </div>
             
-            <nav className="flex items-center gap-1 bg-gray-50/80 p-1 rounded-xl border border-gray-100">
-              <Link href="/" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all hover:bg-white hover:text-indigo-600 text-gray-500">
-                <LayoutDashboard size={14} />
-                Setup Wizard
-              </Link>
-              <Link href="/tenants" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all hover:bg-white hover:text-indigo-600 text-gray-500">
-                <Users size={14} />
-                Manage Tenants
-              </Link>
-            </nav>
+            <nav className="flex items-center gap-6">
+            <Link href="/" className="text-gray-500 hover:text-indigo-600 text-sm font-black transition-colors px-2 py-1 rounded-lg hover:bg-indigo-50/50 uppercase tracking-widest text-[10px]">Overview</Link>
+            <Link href="/tenants" className="text-gray-500 hover:text-indigo-600 text-sm font-black transition-colors px-2 py-1 rounded-lg hover:bg-indigo-50/50 uppercase tracking-widest text-[10px]">Manage Tenants</Link>
+            <Link href="/wizard" className="text-gray-500 hover:text-indigo-600 text-sm font-black transition-colors px-2 py-1 rounded-lg hover:bg-indigo-50/50 uppercase tracking-widest text-[10px]">Setup Wizard</Link>
+            <Link href="/sql-library" className="text-gray-500 hover:text-indigo-600 text-sm font-black transition-colors px-2 py-1 rounded-lg hover:bg-indigo-50/50 uppercase tracking-widest text-[10px]">SQL Library</Link>
+          </nav>
 
             <div className="flex items-center gap-3">
               <div className="h-6 w-px bg-gray-200 mx-1"></div>
-              <div className="bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md border border-green-100 flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                Systems Online
-              </div>
+              <button 
+                onClick={async () => {
+                  const { createClient } = await import('@supabase/supabase-js');
+                  const supabase = createClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                  );
+                  await supabase.auth.signOut();
+                  window.location.href = '/login';
+                }}
+                className="text-[10px] font-black text-red-500 uppercase tracking-widest px-3 py-1.5 rounded-xl border border-red-50 hover:bg-red-50 transition-all"
+              >
+                Log Out
+              </button>
             </div>
           </div>
         </header>
